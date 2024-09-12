@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import pathlib
+import sys
 from typing import Tuple
 
 
@@ -18,7 +19,7 @@ def load_tasks_from_json():
 
 def create_task_json():
     RESOURCE_PATH.mkdir(exist_ok=True)
-    empty_tasks = {'tasks': []}
+    empty_tasks = {'tasks': {}}
     with open(TASKS_JSON, mode='x') as f:
         f.write(json.dumps(empty_tasks))
 
@@ -27,7 +28,7 @@ def get_args() -> argparse.ArgumentParser:
     mutex_arg_group = parser.add_mutually_exclusive_group()
     mutex_arg_group.set_defaults(mode='insert')
     mutex_arg_group.add_argument('-a','--add', type=str)
-    mutex_arg_group.add_argument('-u','--update', type=str)
+    mutex_arg_group.add_argument('-u','--update', nargs='+')
     mutex_arg_group.add_argument('-d','--delete', type=str)
     mutex_arg_group.add_argument('-l','--list', choices=['all', 'done', 'todo', 'ongoing'])
     args = parser.parse_args()
@@ -46,7 +47,7 @@ def save_tasks_to_json(tasks: list):
     with open(TASKS_JSON, mode='w') as f:
         json.dump(task_list, f, indent=2)
 
-def choose_action(args: argparse.Namespace) -> Tuple[str, str]:
+def choose_action(args: argparse.Namespace) -> Tuple[str, str | list]:
     action: str = ''
     value: str = ''
     if args.add:
@@ -66,31 +67,48 @@ def choose_action(args: argparse.Namespace) -> Tuple[str, str]:
         action = 'unknown'
     return (action, value)
 
-def _add(value: str):
-    tasks = load_tasks()
-    new_id = get_new_task_id(tasks)
-    creation_time = datetime.datetime.now(tz=datetime.timezone.utc)
-    new_task = {
-        "id": new_id,
-        "description": value,
-        "createdAt": creation_time.isoformat(),
-        "updatedAt": creation_time.isoformat()
-    }
-    tasks.append(new_task)
-    save_tasks_to_json(tasks)
-    LOGGER.info(f'Task added successfully (ID: {new_id})')
-
-def get_new_task_id(tasks):
-    task_ids = [task["id"] for task in tasks]
+def get_new_task_id(tasks: dict):
+    task_ids = [int(id) for id in tasks.keys()]
     if not task_ids:
         new_id = 0
     else:
         new_id = max(task_ids) + 1
     return new_id
-    
 
-def _update(value: str):
+def _current_time():
+    return datetime.datetime.now(tz=datetime.timezone.utc).isoformat()
+
+def _add(value: str):
     tasks = load_tasks()
+    new_id = get_new_task_id(tasks)
+    creation_time = _current_time()
+    new_task = {
+        "description": value,
+        "status": "todo",
+        "createdAt": creation_time,
+        "updatedAt": creation_time
+    }
+    tasks[new_id] = new_task
+    save_tasks_to_json(tasks)
+    LOGGER.info(f'Task added successfully (ID: {new_id})')    
+
+def _update(value: list):
+    try:
+        task_id = int(value[0])
+        new_task = value[1]
+        if type(task_id) != int or type(new_task) != str:
+            raise IndexError
+    except (IndexError, ValueError):
+        LOGGER.error('Update takes exactly two values, Task ID (integer) and Task description (str)!')
+        return
+    tasks = load_tasks()
+    try:
+        tasks[str(task_id)]["description"] = new_task
+        tasks[str(task_id)]["updatedAt"] = _current_time()
+    except KeyError:
+        LOGGER.error('Task ID does not exist!')
+    save_tasks_to_json(tasks)
+    LOGGER.info(f'Task updated successfully (ID: {task_id}, Description: "{new_task}")') 
 
 def _delete(value: str):
     tasks = load_tasks()
@@ -98,7 +116,7 @@ def _delete(value: str):
 def _list(value: str):
     tasks = load_tasks()
 
-def perform_action(action: str, value: str):
+def perform_action(action: str, value: str | list):
     match action:
         case 'add':
             _add(value)
