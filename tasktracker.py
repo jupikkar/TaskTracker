@@ -2,10 +2,7 @@ import argparse
 import datetime
 import json
 import logging
-import os
 import pathlib
-import sys
-import time
 from typing import Tuple
 
 
@@ -146,11 +143,15 @@ def _list(value: str):
 def _print_task(task: tuple):
     task_id = task[0]
     task = task[1]
+    readable_created, readable_updated = get_readable_times(task)
+    LOGGER.info(f"Task ID: {task_id}, Task Status: {task['status']}, Created: {readable_created}, Last updated: {readable_updated}")
+
+def get_readable_times(task):
     created = datetime.datetime.fromisoformat(task['createdAt'])
     updated = datetime.datetime.fromisoformat(task['updatedAt'])
     readable_created = created.strftime("%c")
     readable_updated = updated.strftime("%c")
-    LOGGER.info(f"Task ID: {task_id}, Task Status: {task['status']}, Created: {readable_created}, Last updated: {readable_updated}")
+    return readable_created,readable_updated
 
 def perform_action(action: str, value: str | list):
     match action:
