@@ -29,12 +29,14 @@ def get_args() -> argparse.ArgumentParser:
     mutex_arg_group.set_defaults(mode='insert')
     mutex_arg_group.add_argument('-a','--add', type=str)
     mutex_arg_group.add_argument('-u','--update', nargs='+')
-    mutex_arg_group.add_argument('-d','--delete', type=str)
+    mutex_arg_group.add_argument('-r','--remove', type=str)
+    mutex_arg_group.add_argument('-i','--inprogress', type=str)
+    mutex_arg_group.add_argument('-d','--done', type=str)
     mutex_arg_group.add_argument('-l','--list', choices=['all', 'done', 'todo', 'ongoing'])
     args = parser.parse_args()
     return args
 
-def load_tasks() -> list[str]:
+def load_tasks() -> dict[str]:
     try:
         tasks = load_tasks_from_json()
     except FileNotFoundError:
@@ -56,9 +58,9 @@ def choose_action(args: argparse.Namespace) -> Tuple[str, str | list]:
     elif args.update:
         action = 'update'
         value = args.update
-    elif args.delete:
-        action = 'delete'
-        value = args.delete
+    elif args.remove:
+        action = 'remove'
+        value = args.remove
     elif args.list:
         action = 'list'
         value = args.list
@@ -94,24 +96,38 @@ def _add(value: str):
 
 def _update(value: list):
     try:
-        task_id = int(value[0])
-        new_task = value[1]
-        if type(task_id) != int or type(new_task) != str:
-            raise IndexError
+        task_id, new_task = _parse_update_values(value)
     except (IndexError, ValueError):
         LOGGER.error('Update takes exactly two values, Task ID (integer) and Task description (str)!')
         return
     tasks = load_tasks()
     try:
-        tasks[str(task_id)]["description"] = new_task
-        tasks[str(task_id)]["updatedAt"] = _current_time()
+        _update_task(task_id, new_task, tasks)
     except KeyError:
         LOGGER.error('Task ID does not exist!')
     save_tasks_to_json(tasks)
     LOGGER.info(f'Task updated successfully (ID: {task_id}, Description: "{new_task}")') 
 
-def _delete(value: str):
+def _update_task(task_id, new_task, tasks):
+    tasks[str(task_id)]["description"] = new_task
+    tasks[str(task_id)]["updatedAt"] = _current_time()
+
+def _parse_update_values(value):
+    task_id = int(value[0])
+    new_task = value[1]
+    if type(task_id) != int or type(new_task) != str:
+        raise IndexError
+    return task_id,new_task
+
+def _remove(value: str):
     tasks = load_tasks()
+    try:
+        del(tasks[value])
+    except KeyError:
+        LOGGER.error(f'Remove failed; ID {value} does not exist!')
+        return
+    save_tasks_to_json(tasks)
+    LOGGER.info(f'Task removed successfully (ID: {value})') 
 
 def _list(value: str):
     tasks = load_tasks()
@@ -122,8 +138,8 @@ def perform_action(action: str, value: str | list):
             _add(value)
         case 'update':
             _update(value)
-        case 'delete':
-            _delete(value)
+        case 'remove':
+            _remove(value)
         case 'list':
             _list(value)
 
