@@ -5,6 +5,7 @@ import logging
 import os
 import pathlib
 import sys
+import time
 from typing import Tuple
 
 
@@ -27,12 +28,12 @@ def get_args() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="TaskTracker", description="A simple app for tracking tasks")
     mutex_arg_group = parser.add_mutually_exclusive_group()
     mutex_arg_group.set_defaults(mode='insert')
-    mutex_arg_group.add_argument('-a','--add', type=str)
-    mutex_arg_group.add_argument('-u','--update', nargs='+')
-    mutex_arg_group.add_argument('-r','--remove', type=str)
-    mutex_arg_group.add_argument('-i','--inprogress', type=str)
-    mutex_arg_group.add_argument('-d','--done', type=str)
-    mutex_arg_group.add_argument('-l','--list', choices=['all', 'done', 'todo', 'ongoing'])
+    mutex_arg_group.add_argument('-a','--add', type=str, help="Add a task. Usage: --add 'Description of task'")
+    mutex_arg_group.add_argument('-u','--update', nargs='+', help="Update a task. Usage: --update <ID> <'Description of task'>")
+    mutex_arg_group.add_argument('-r','--remove', type=str, help="Remove a task. Usage: --remove <ID>")
+    mutex_arg_group.add_argument('-o','--ongoing', type=str, help="Mark a task as in-progress. Usage: --ongoing <ID>")
+    mutex_arg_group.add_argument('-d','--done', type=str, help="Mark a task as done. Usage: --done <ID>")
+    mutex_arg_group.add_argument('-l','--list', choices=['all', 'done', 'todo', 'ongoing'], help="List all tasks, or by status. Usage: --list all|done|ongoing|todo")
     args = parser.parse_args()
     return args
 
@@ -78,7 +79,7 @@ def get_new_task_id(tasks: dict):
     return new_id
 
 def _current_time():
-    return datetime.datetime.now(tz=datetime.timezone.utc).isoformat()
+    return datetime.datetime.now(tz=datetime.timezone.utc).astimezone().isoformat()
 
 def _add(value: str):
     tasks = load_tasks()
@@ -131,6 +132,25 @@ def _remove(value: str):
 
 def _list(value: str):
     tasks = load_tasks()
+    tasks_to_print = None
+    if value == "all":
+        tasks_to_print = [task for task in tasks.items()]
+    else:
+        tasks_to_print = [task for task in tasks.items() if task[1]["status"] == value]
+    if tasks_to_print:
+        LOGGER.info("##### List of Tasks #####")
+        [_print_task(task) for task in tasks_to_print]
+    else:
+        LOGGER.info("No tasks to print!")
+
+def _print_task(task: tuple):
+    task_id = task[0]
+    task = task[1]
+    created = datetime.datetime.fromisoformat(task['createdAt'])
+    updated = datetime.datetime.fromisoformat(task['updatedAt'])
+    readable_created = created.strftime("%c")
+    readable_updated = updated.strftime("%c")
+    LOGGER.info(f"Task ID: {task_id}, Task Status: {task['status']}, Created: {readable_created}, Last updated: {readable_updated}")
 
 def perform_action(action: str, value: str | list):
     match action:
