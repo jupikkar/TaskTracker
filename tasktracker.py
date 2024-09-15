@@ -48,8 +48,8 @@ def save_tasks_to_json(tasks: list):
         json.dump(task_list, f, indent=2)
 
 def choose_action(args: argparse.Namespace) -> Tuple[str, str | list]:
-    action: str = ''
-    value: str = ''
+    action: str = None
+    value: str = None
     if args.add:
         action = 'add'
         value = args.add
@@ -62,6 +62,12 @@ def choose_action(args: argparse.Namespace) -> Tuple[str, str | list]:
     elif args.list:
         action = 'list'
         value = args.list
+    elif args.ongoing:
+        action = 'ongoing'
+        value = args.ongoing
+    elif action == 'done':
+        action = 'done'
+        value = args.done
     else:
         # This should already be safeguarded by the mutex arg group, but safe is safe.
         action = 'unknown'
@@ -173,7 +179,6 @@ def main():
     args = get_args()
     action, value = choose_action(args)
     perform_action(action, value)
-    LOGGER.debug('Finished')
 
 if __name__ == "__main__":
     main()
