@@ -3,7 +3,7 @@ import datetime
 import json
 import logging
 import pathlib
-from typing import Tuple
+from typing import Any, Tuple
 
 
 RESOURCE_PATH = pathlib.Path.cwd() / 'res'
@@ -21,7 +21,7 @@ def create_task_json():
     with open(TASKS_JSON, mode='x') as f:
         f.write(json.dumps(empty_tasks))
 
-def get_args() -> argparse.ArgumentParser:
+def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="TaskTracker", description="A simple app for tracking tasks")
     mutex_arg_group = parser.add_mutually_exclusive_group()
     mutex_arg_group.set_defaults(mode='insert')
@@ -34,7 +34,7 @@ def get_args() -> argparse.ArgumentParser:
     args = parser.parse_args()
     return args
 
-def load_tasks() -> dict[str]:
+def load_tasks() -> dict[str, Any]:
     try:
         tasks = load_tasks_from_json()
     except FileNotFoundError:
@@ -42,14 +42,14 @@ def load_tasks() -> dict[str]:
         tasks = load_tasks_from_json()
     return tasks["tasks"]
 
-def save_tasks_to_json(tasks: list):
+def save_tasks_to_json(tasks: dict[str,Any]):
     task_list = {'tasks': tasks}
     with open(TASKS_JSON, mode='w') as f:
         json.dump(task_list, f, indent=2)
 
 def choose_action(args: argparse.Namespace) -> Tuple[str, str | list]:
-    action: str = None
-    value: str = None
+    action: str = ''
+    value: str = ''
     if args.add:
         action = 'add'
         value = args.add
@@ -84,7 +84,7 @@ def get_new_task_id(tasks: dict):
 def _current_time():
     return datetime.datetime.now(tz=datetime.timezone.utc).astimezone().isoformat()
 
-def _add(value: str):
+def _add(value: str | list):
     tasks = load_tasks()
     new_id = get_new_task_id(tasks)
     creation_time = _current_time()
@@ -98,7 +98,7 @@ def _add(value: str):
     save_tasks_to_json(tasks)
     LOGGER.info(f'Task added successfully (ID: {new_id})')    
 
-def _update(value: list):
+def _update(value: str | list):
     try:
         task_id, new_task = _parse_update_values(value)
     except (IndexError, ValueError):
@@ -146,11 +146,13 @@ def _list(value: str):
     else:
         LOGGER.info("No tasks to print!")
 
-def _print_task(task: tuple):
+def _print_task(task: tuple[str, dict[str, Any]]):
     task_id = task[0]
-    task = task[1]
-    readable_created, readable_updated = get_readable_times(task)
-    LOGGER.info(f"Task ID: {task_id}, Task Status: {task['status']}, Created: {readable_created}, Last updated: {readable_updated}")
+    task_data = task[1]
+    readable_created, readable_updated = get_readable_times(task_data)
+    LOGGER.info(
+        f"Task ID: {task_id}, Task Status: {task_data['status']}, Created: {readable_created}, Last updated: {readable_updated}"
+    )
 
 def get_readable_times(task):
     created = datetime.datetime.fromisoformat(task['createdAt'])
@@ -166,9 +168,9 @@ def perform_action(action: str, value: str | list):
         case 'update':
             _update(value)
         case 'remove':
-            _remove(value)
+            _remove(str(value))
         case 'list':
-            _list(value)
+            _list(str(value))
 
 def set_up_logging():
     logging.basicConfig(level=logging.INFO, format='%(name)s: %(message)s')
