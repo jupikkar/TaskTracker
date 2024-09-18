@@ -65,7 +65,7 @@ def choose_action(args: argparse.Namespace) -> Tuple[str, str | list]:
     elif args.ongoing:
         action = 'ongoing'
         value = args.ongoing
-    elif action == 'done':
+    elif args.done:
         action = 'done'
         value = args.done
     else:
@@ -106,14 +106,17 @@ def _update(value: str | list):
         return
     tasks = load_tasks()
     try:
-        _update_task(task_id, new_task, tasks)
+        _update_task(task_id = task_id, tasks = tasks, new_task = new_task)
     except KeyError:
         LOGGER.error('Task ID does not exist!')
     save_tasks_to_json(tasks)
     LOGGER.info(f'Task updated successfully (ID: {task_id}, Description: "{new_task}")') 
 
-def _update_task(task_id, new_task, tasks):
-    tasks[str(task_id)]["description"] = new_task
+def _update_task(task_id: str, tasks: list[Any], new_task: None | str = None, new_status: str = None):
+    if new_task:
+        tasks[str(task_id)]["description"] = new_task
+    if new_status:
+        tasks[str(task_id)]["status"] = new_status
     tasks[str(task_id)]["updatedAt"] = _current_time()
 
 def _parse_update_values(value):
@@ -171,6 +174,33 @@ def perform_action(action: str, value: str | list):
             _remove(str(value))
         case 'list':
             _list(str(value))
+        case 'ongoing':
+            _ongoing(str(value))
+        case 'done':
+            print('lol')
+            _done(str(value))
+
+def _ongoing(value: str):
+    tasks = load_tasks()
+    new_status = 'ongoing'
+    try:
+        _update_task(task_id=value, tasks=tasks, new_status = new_status)
+    except KeyError:
+        LOGGER.error('Task ID does not exist!')
+        return
+    save_tasks_to_json(tasks)
+    LOGGER.info(f'Task updated successfully (ID: {value}, New status: {new_status})') 
+
+def _done(value: str):
+    tasks = load_tasks()
+    new_status = 'done'
+    try:
+        _update_task(task_id=value, tasks=tasks, new_status = new_status)
+    except KeyError:
+        LOGGER.error('Task ID does not exist!')
+        return
+    save_tasks_to_json(tasks)
+    LOGGER.info(f'Task updated successfully (ID: {value}, New status: {new_status})') 
 
 def set_up_logging():
     logging.basicConfig(level=logging.INFO, format='%(name)s: %(message)s')
