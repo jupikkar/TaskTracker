@@ -112,7 +112,7 @@ def _update(value: str | list):
     save_tasks_to_json(tasks)
     LOGGER.info(f'Task updated successfully (ID: {task_id}, Description: "{new_task}")') 
 
-def _update_task(task_id: str, tasks: list[Any], new_task: None | str = None, new_status: str = None):
+def _update_task(task_id: str, tasks: dict[str, Any], new_task: None | str = None, new_status: None | str = None):
     if new_task:
         tasks[str(task_id)]["description"] = new_task
     if new_status:
