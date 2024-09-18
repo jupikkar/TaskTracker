@@ -2,6 +2,10 @@
 
 A simple app for saving and updating task lists.
 
+## Specifications
+
+Inspired by https://roadmap.sh/projects/task-tracker
+
 ## Requirements
 
 A Python version at a minimum of 3.10 is required.
